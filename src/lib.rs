@@ -122,7 +122,7 @@ mod tests {
         if let Some((open, axial)) = coded {
             assert_eq!(open.open_code, expected_open);
             assert_eq!(axial, expected_axial);
-            assert!(!open.free_text_annotation.is_empty());
+            assert_ne!(open.free_text_annotation, "");
         }
     }
 

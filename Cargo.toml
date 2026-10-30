@@ -39,6 +39,7 @@ similar_names = "allow"
 result_large_err = "allow"
 too_many_lines = "allow"
 uninlined_format_args = "allow"
+assert_is_empty = "allow"
 
 [dependencies]
 anyhow = "1.0"
