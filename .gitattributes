@@ -1,0 +1,13 @@
+# Set default behavior to automatically normalize line endings
+* text=auto eol=lf
+
+# Explicitly exclude data corpora, generated fixtures, and scripts from language statistics
+fixtures/** linguist-vendored
+fixtures/** linguist-detectable=false
+*.jsonl linguist-vendored
+*.jsonl linguist-detectable=false
+*.json linguist-vendored
+*.json linguist-detectable=false
+*.html linguist-generated
+*.html linguist-detectable=false
+reval.ps1 linguist-documentation
