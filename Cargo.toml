@@ -1,0 +1,66 @@
+[package]
+name = "reval"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+description = "TideOS Eval Kit (Tool 1): Deterministic evaluation, trace error analysis (open/axial coding), and repository hygiene toolchain."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/TechTideOhio/reval"
+homepage = "https://techtideai.io"
+documentation = "https://github.com/TechTideOhio/reval#readme"
+keywords = ["evals", "ai-agents", "error-analysis", "axial-coding", "harness"]
+categories = ["command-line-utilities", "development-tools::testing"]
+
+[[bin]]
+name = "reval"
+path = "src/main.rs"
+
+[lib]
+name = "reval"
+path = "src/lib.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+dbg_macro = "deny"
+todo = "deny"
+unwrap_used = "deny"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+struct_excessive_bools = "allow"
+similar_names = "allow"
+result_large_err = "allow"
+too_many_lines = "allow"
+uninlined_format_args = "allow"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", default-features = false, features = ["std", "derive", "help", "usage", "error-context", "suggestions"] }
+regex = "1.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+thiserror = "2.0"
+toml = "0.8"
+
+[dev-dependencies]
+rstest = { version = "0.23", default-features = false }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.{ archive-format }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"

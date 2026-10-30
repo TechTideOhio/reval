@@ -1,0 +1,253 @@
+{
+  "passed": true,
+  "proof_sha256": "66dee7210f9fd82d595222e78808051e0494553e5843c834c19a838434d4b55d",
+  "checks": [
+    {
+      "metric": "loop_cascade_rate_pct",
+      "observed": 15.9,
+      "threshold": 20.0,
+      "comparison": "<=",
+      "passed": true
+    },
+    {
+      "metric": "loop_guard_breach_count",
+      "observed": 10.0,
+      "threshold": 10.0,
+      "comparison": "<=",
+      "passed": true
+    },
+    {
+      "metric": "runtime_drift_rate_pct",
+      "observed": 6.6,
+      "threshold": 8.0,
+      "comparison": "<=",
+      "passed": true
+    },
+    {
+      "metric": "premature_kill_rate_pct",
+      "observed": 4.9,
+      "threshold": 5.0,
+      "comparison": "<=",
+      "passed": true
+    },
+    {
+      "metric": "pass_at_1",
+      "observed": 0.7603,
+      "threshold": 0.75,
+      "comparison": ">=",
+      "passed": true
+    },
+    {
+      "metric": "pass_at_3",
+      "observed": 0.9862,
+      "threshold": 0.98,
+      "comparison": ">=",
+      "passed": true
+    }
+  ],
+  "report": {
+    "corpus_sha256": "54256d4e169b79a4d0904f803cf1c5e552f842e34a67b51ee29b7ad972b13622",
+    "reliability": {
+      "total_traces": 459,
+      "passed_traces": 349,
+      "failed_traces": 110,
+      "pass_at_1": 0.7603,
+      "pass_at_3": 0.9862,
+      "pass_hat_3": 0.4396
+    },
+    "first_three_metrics": {
+      "loop_cascade_rate_pct": 15.9,
+      "loop_guard_breach_count": 10,
+      "runtime_drift_rate_pct": 6.6,
+      "premature_kill_rate_pct": 4.9
+    },
+    "top_3_axial_categories": [
+      {
+        "rank": 1,
+        "category": "loop_cascade",
+        "metric_name": "loop_cascade_rate",
+        "title": "Monorepo Build-Order & Gate Loop Cascades",
+        "frequency": 37,
+        "share_of_failures_pct": 33.6,
+        "open_codes": [
+          "LINT-RATCHET-HYGIENE-GATE",
+          "TYPECHECK-BUILD-ORDER-CASCADE"
+        ],
+        "sample_trace_ids": [
+          "2026-10-30T11-59-45-pnpm-build_packages",
+          "2026-10-30T11-59-52-pnpm---filter-_vsp_studio-api",
+          "2026-10-30T12-01-27-pnpm-build_packages",
+          "2026-10-30T12-01-33-pnpm---filter-_vsp_studio-api",
+          "2026-10-30T12-02-01-pnpm-build_packages"
+        ],
+        "remediation_hint": "Rebuild upstream @vsp/contracts + regenerate types before downstream typecheck; halt immediately on q.mjs exit 3."
+      },
+      {
+        "rank": 2,
+        "category": "test_iteration",
+        "metric_name": "test_iteration_rate",
+        "title": "Unit/Integration Assertion & Concurrency Test Iteration",
+        "frequency": 37,
+        "share_of_failures_pct": 33.6,
+        "open_codes": [
+          "VITEST-ASSERTION-ITERATION"
+        ],
+        "sample_trace_ids": [
+          "2026-10-30T12-00-06-pnpm---filter-_vsp_studio-api",
+          "2026-10-30T12-01-00-pnpm---filter-_vsp_shopfront",
+          "2026-10-30T13-06-50-pnpm---filter-_vsp_contracts",
+          "2026-10-30T13-07-04-pnpm---filter-_vsp_contracts",
+          "2026-10-30T13-34-28-pnpm---filter-_vsp_contracts"
+        ],
+        "remediation_hint": "Run narrowest single test file while iterating; isolate Postgres advisory-lock fixtures per test."
+      },
+      {
+        "rank": 3,
+        "category": "runtime_drift",
+        "metric_name": "runtime_drift_rate",
+        "title": "Agent Binary, Self-Update Stub & Model Catalog Drift",
+        "frequency": 15,
+        "share_of_failures_pct": 13.6,
+        "open_codes": [
+          "BINARY-SELF-UPDATE-STUB",
+          "ENV-PATH-SANDBOX",
+          "MODEL-CATALOG-MISMATCH",
+          "TEST-ARTIFACT-POLLUTION"
+        ],
+        "sample_trace_ids": [
+          "2026-10-13-20-04-55-codex",
+          "2026-10-13-20-59-09-opencode-desktop",
+          "2026-10-13-21-01-38-opencode-desktop",
+          "2026-10-13-21-23-47-claude",
+          "2026-10-14-01-58-03-claude"
+        ],
+        "remediation_hint": "Resolve native claude.exe (>4KB) and desktop codex.exe directly; isolate test runs via HARNESS_RUNS_DIR."
+      }
+    ],
+    "all_axial_categories": [
+      {
+        "rank": 1,
+        "category": "loop_cascade",
+        "metric_name": "loop_cascade_rate",
+        "title": "Monorepo Build-Order & Gate Loop Cascades",
+        "frequency": 37,
+        "share_of_failures_pct": 33.6,
+        "open_codes": [
+          "LINT-RATCHET-HYGIENE-GATE",
+          "TYPECHECK-BUILD-ORDER-CASCADE"
+        ],
+        "sample_trace_ids": [
+          "2026-10-30T11-59-45-pnpm-build_packages",
+          "2026-10-30T11-59-52-pnpm---filter-_vsp_studio-api",
+          "2026-10-30T12-01-27-pnpm-build_packages",
+          "2026-10-30T12-01-33-pnpm---filter-_vsp_studio-api",
+          "2026-10-30T12-02-01-pnpm-build_packages"
+        ],
+        "remediation_hint": "Rebuild upstream @vsp/contracts + regenerate types before downstream typecheck; halt immediately on q.mjs exit 3."
+      },
+      {
+        "rank": 2,
+        "category": "test_iteration",
+        "metric_name": "test_iteration_rate",
+        "title": "Unit/Integration Assertion & Concurrency Test Iteration",
+        "frequency": 37,
+        "share_of_failures_pct": 33.6,
+        "open_codes": [
+          "VITEST-ASSERTION-ITERATION"
+        ],
+        "sample_trace_ids": [
+          "2026-10-30T12-00-06-pnpm---filter-_vsp_studio-api",
+          "2026-10-30T12-01-00-pnpm---filter-_vsp_shopfront",
+          "2026-10-30T13-06-50-pnpm---filter-_vsp_contracts",
+          "2026-10-30T13-07-04-pnpm---filter-_vsp_contracts",
+          "2026-10-30T13-34-28-pnpm---filter-_vsp_contracts"
+        ],
+        "remediation_hint": "Run narrowest single test file while iterating; isolate Postgres advisory-lock fixtures per test."
+      },
+      {
+        "rank": 3,
+        "category": "runtime_drift",
+        "metric_name": "runtime_drift_rate",
+        "title": "Agent Binary, Self-Update Stub & Model Catalog Drift",
+        "frequency": 15,
+        "share_of_failures_pct": 13.6,
+        "open_codes": [
+          "BINARY-SELF-UPDATE-STUB",
+          "ENV-PATH-SANDBOX",
+          "MODEL-CATALOG-MISMATCH",
+          "TEST-ARTIFACT-POLLUTION"
+        ],
+        "sample_trace_ids": [
+          "2026-10-13-20-04-55-codex",
+          "2026-10-13-20-59-09-opencode-desktop",
+          "2026-10-13-21-01-38-opencode-desktop",
+          "2026-10-13-21-23-47-claude",
+          "2026-10-14-01-58-03-claude"
+        ],
+        "remediation_hint": "Resolve native claude.exe (>4KB) and desktop codex.exe directly; isolate test runs via HARNESS_RUNS_DIR."
+      },
+      {
+        "rank": 4,
+        "category": "premature_kill",
+        "metric_name": "premature_kill_rate",
+        "title": "Subprocess Stream-Disconnect & TLS Kills",
+        "frequency": 11,
+        "share_of_failures_pct": 10.0,
+        "open_codes": [
+          "SANDBOX-TLS-TIMEOUT",
+          "STREAM-DISCONNECT-ABORT"
+        ],
+        "sample_trace_ids": [
+          "2026-10-13-20-08-58-codex",
+          "2026-10-19T14-49-18-118Z-cfc04b5235afc3f4",
+          "2026-10-19T15-06-21-357Z-609f32b07c0cf66a",
+          "2026-10-19T16-27-44-468Z-41670040aba5f7f1",
+          "2026-10-19T16-46-00-643Z-157105f7906d5aeb"
+        ],
+        "remediation_hint": "Ignore transient `Reconnecting... i/n` events in codex-run.mjs; only terminate on `turn.failed` or non-reconnect errors."
+      },
+      {
+        "rank": 5,
+        "category": "env_auth_budget",
+        "metric_name": "env_auth_budget_rate",
+        "title": "OAuth Expiry, Missing Docker/Deps & Tool Budget Cap",
+        "frequency": 6,
+        "share_of_failures_pct": 5.5,
+        "open_codes": [
+          "AUTH-OAUTH-EXPIRED",
+          "ENV-MISSING-DOCKER-OR-DEPS",
+          "TOOL-BUDGET-EXHAUSTION"
+        ],
+        "sample_trace_ids": [
+          "2026-10-13-20-16-13-claude",
+          "2026-10-20T01-20-51-963Z-69fbc4a554574568",
+          "2026-10-30T12-01-44-pnpm---filter-_vsp_studio-api",
+          "2026-10-30T12-03-36-pnpm-exec-vitest",
+          "2026-10-30T12-09-40-pnpm-exec-vitest"
+        ],
+        "remediation_hint": "Verify OAuth session and Docker daemon availability pre-dispatch; split large multi-file patches under 60-tool cap."
+      },
+      {
+        "rank": 6,
+        "category": "shell_trust_config",
+        "metric_name": "shell_trust_config_rate",
+        "title": "Windows Shell Quoting, Git Trust & TOML Config",
+        "frequency": 4,
+        "share_of_failures_pct": 3.6,
+        "open_codes": [
+          "CONFIG-TOML-SCHEMA",
+          "GIT-TRUST-BOUNDARY",
+          "SHELL-CMD-SYNTAX",
+          "SHELL-QUOTING-SPLIT"
+        ],
+        "sample_trace_ids": [
+          "2026-10-13-20-06-14-codex",
+          "2026-10-13-20-06-40-codex",
+          "2026-10-13-20-07-28-codex",
+          "2026-10-18T14-49-26-434Z-a10dcac42b3e0f74"
+        ],
+        "remediation_hint": "Pass single pre-quoted command line on Windows cmd.exe and include --skip-git-repo-check for non-git roots."
+      }
+    ]
+  }
+}

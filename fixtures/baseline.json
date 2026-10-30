@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "max_loop_cascade_rate_pct": 20.0,
+  "max_loop_guard_breach_count": 10,
+  "max_runtime_drift_rate_pct": 8.0,
+  "max_premature_kill_rate_pct": 5.0,
+  "min_pass_at_1": 0.75,
+  "min_pass_at_3": 0.98
+}

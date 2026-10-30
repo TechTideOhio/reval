@@ -1,0 +1,26 @@
+name: Feature Request / Proposal
+description: Suggest an idea or new evaluation check for reval
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: Proposals should follow YAGNI and prioritize deterministic, reproducible evaluation without non-deterministic LLM-as-a-judge dependencies.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What agent failure mode or eval limitation does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution / CLI Interface
+      description: Describe how the CLI, check, or API should work.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative approaches or workarounds you considered.

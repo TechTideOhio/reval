@@ -1,0 +1,48 @@
+name: Bug Report
+description: File a bug report for reval
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting an issue in `reval`! Please verify that all reproduction commands run with `--json` or `-v`.
+  - type: input
+    id: version
+    attributes:
+      label: reval Version
+      description: What version of `reval` are you using? (Run `reval --version`)
+      placeholder: "reval 0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows (x86_64)
+        - macOS (Apple Silicon / aarch64)
+        - macOS (Intel / x86_64)
+        - Linux (x86_64)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to Reproduce
+      description: The exact command line and flags invoked.
+      placeholder: |
+        reval trace analyze --root .
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Diagnostic Output
+      description: Terminal output or `--json` envelope.
+      render: shell
