@@ -1,12 +1,18 @@
 # reval — TideOS Eval Kit (Tool 1)
 
-> **Deterministic evaluation, trace error analysis, causal failure graphs, and fail-closed quality gating for autonomous AI agent harnesses and software factories.**
+<div align="center">
+
+**Deterministic evaluation, trace error analysis, causal failure graphs, and fail-closed quality gating for autonomous AI agent harnesses and software factories.**
 
 [![CI](https://github.com/TechTideOhio/reval/actions/workflows/ci.yml/badge.svg)](https://github.com/TechTideOhio/reval/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Rust: 2024 / 1.85+](https://img.shields.io/badge/Rust-2024%20%2F%201.85%2B-orange.svg)](Cargo.toml)
+[![Release](https://img.shields.io/github/v/release/TechTideOhio/reval?color=blue&label=release)](https://github.com/TechTideOhio/reval/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
+[![Rust: 2024 / 1.82+](https://img.shields.io/badge/Rust-2024%20%2F%201.82%2B-orange.svg)](Cargo.toml)
+[![Zero-FFI](https://img.shields.io/badge/Dependencies-Zero--FFI%20Pure%20Rust-purple.svg)](Cargo.toml)
 
-Part of **TideOS** by [TechTide AI](https://techtideai.io).
+[Quickstart](#60-second-quickstart) • [Core Capabilities](#core-capabilities-architected-for-real-agent-engineers) • [Architecture](#architecture) • [Dashboard](#interactive-trace-tree-dashboard) • [Contributing](CONTRIBUTING.md)
+
+</div>
 
 ---
 
@@ -19,6 +25,21 @@ Most AI evaluation frameworks rely on LLM-as-a-judge prompts that suffer from no
 > *"Start with error analysis, not metrics. Sample 100+ production traces. Annotate each failure in free text (open coding), then cluster them into failure categories (axial coding). Count frequency per category. Your top 3 categories are your first metrics."*
 
 `reval` is a single, zero-dependency, pure-Rust CLI tool with no `-sys` C libraries, no external Python runtimes, and no LLM API calls in the verification path. It evaluates agent runs deterministically in milliseconds.
+
+---
+
+## Feature Comparison
+
+| Capability | `reval` (TideOS) | LangSmith / Tracing | Promptfoo | PyTest / Unit Tests |
+|---|:---:|:---:|:---:|:---:|
+| **Empirical Trace Error Analysis** | **Yes** (Husain/Shankar) | UI manual tag | No | No |
+| **Deterministic CI Gate (Zero LLM)** | **Yes** (< 0.2s) | Paid cloud eval | Slow prompt eval | Yes (Code only) |
+| **Blocker Veto (Score 0.0 on Key Leaks)** | **Yes** (Fail-closed) | No (Averages) | Configurable | Assert fail |
+| **Causal Failure Graph (Graph-RAG)** | **Yes** (Mermaid/DOT/JSON) | Trace tree only | No | No |
+| **Active Loop Watcher (Poltergeist-Style)** | **Yes** (Terminal bell) | No | No | No |
+| **Native Stdio MCP Server** | **Yes** (JSON-RPC) | API / SDK | No | No |
+| **Cryptographic Proofs (SHA-256)** | **Yes** (`proof.json`) | Cloud DB | No | No |
+| **Binary Portability** | **Pure Rust** (Single binary) | SaaS / Python | Node.js | Python / C-deps |
 
 ---
 
@@ -71,6 +92,7 @@ flowchart LR
     LINT_RATCHET_HYGIENE_GATE["LINT-RATCHET-HYGIENE-GATE"] -->|n=15, 13.6%| loop_cascade["loop_cascade"]
     TEST_ARTIFACT_POLLUTION["TEST-ARTIFACT-POLLUTION"] -->|n=11, 10.0%| runtime_drift["runtime_drift"]
     STREAM_DISCONNECT_ABORT["STREAM-DISCONNECT-ABORT"] -->|n=10, 9.1%| premature_kill["premature_kill"]
+    ENV_MISSING_DOCKER_OR_DEPS["ENV-MISSING-DOCKER-OR-DEPS"] -->|n=4, 3.6%| env_auth_budget["env_auth_budget"]
 ```
 
 ### 4. Proactive Lessons Learned for Agent Memory (Mimir / NornicDB)
@@ -82,7 +104,7 @@ reval trace lessons vitest
 
 ```text
 === REVAL PROACTIVE LESSONS (query: Some("vitest")) ===
-#1. [VITEST-ASSERTION-ITERATION] -> [test_iteration] (n=37, 33.6% risk)
+#1. [VITEST-ASSERTION-ITERATION] -> [test_iteration] (n=42, 36.5% risk)
    Rule: Run narrowest single test file while iterating; isolate Postgres advisory-lock fixtures per test.
 ```
 
@@ -90,27 +112,25 @@ reval trace lessons vitest
 `reval trace tree` aggregates multi-agent trajectories into an interactive, self-contained HTML dashboard with search filtering, collapsible nodes, and error badges:
 
 ```bash
-reval trace tree --html Tools/reval/fixtures/tree.html
+reval trace tree --html fixtures/tree.html
 ```
-
-### 6. Hybrid Evaluation (Code Heuristics + Model-Graded Evaluators)
-Golden test suites (`reval eval suite`) support `Check::HybridJudge`, combining deterministic regex and exit-code validation with optional external model-graded rubric scripts, failing closed if the evaluator exits non-zero.
 
 ---
 
 ## 60-Second Quickstart
 
-### Build from Source
+### Installation
 
+#### Option 1: Cargo (from source)
 ```bash
-# Clone and build release binary
-cargo build --manifest-path Tools/reval/Cargo.toml --release
-
-# On Windows PowerShell, use the helper wrapper:
-.\Tools\reval\reval.ps1 --help
+cargo install --git https://github.com/TechTideOhio/reval
 ```
 
-### Trace Error Analysis (Husain/Shankar Pipeline)
+#### Option 2: Pre-compiled GitHub Release Binary
+Download the single standalone binary directly from [Releases](https://github.com/TechTideOhio/reval/releases/latest) for your platform (Linux x86_64, macOS Apple Silicon / Intel, Windows x86_64).
+
+### 1. Ingest & Analyze Multi-Agent Traces
+Scans harness runs and execution logs, performs open coding on failures, clusters them into axial categories, and calculates Pass@1, Pass@3, and Pass^3:
 
 ```bash
 reval trace analyze --root .
@@ -138,13 +158,21 @@ Reliability: pass=349 fail=110 | pass@1=76.0% | pass@3=98.6% | pass^3=44.0%
 3. premature_kill_rate_pct = 4.9%
 ```
 
-### Fail-Closed Quality Gate
+### 2. Export Scrubbed Trace Corpus
+Exports an anonymized JSONL corpus with high-entropy tokens and secrets redacted:
+
+```bash
+reval trace export --root . --out-dir fixtures/
+```
+
+### 3. Run Quality Gate Against Baseline
+Evaluates trace reliability against ratcheted thresholds, ensuring pass rates never backslide:
 
 ```bash
 reval gate \
-  --corpus Tools/reval/fixtures/traces.jsonl \
-  --baseline Tools/reval/fixtures/baseline.json \
-  --write-proof Tools/reval/fixtures/proof.json
+  --corpus fixtures/traces.jsonl \
+  --baseline fixtures/baseline.json \
+  --write-proof fixtures/proof.json
 ```
 
 Output:
@@ -158,18 +186,25 @@ PASS: all 6 axial metric gates passed (proof_sha256=66dee7210f9f...)
   [PASS] pass_at_3                  observed=0.9862   >= threshold=0.98
 ```
 
+### 4. Scan Repository & Agent Hygiene
+Verifies `.env` files are not committed, pnpm/cargo lockfiles are intact, and skill markdown references point to real files:
+
+```bash
+reval hygiene .
+```
+
 ---
 
-## Machine-Readable JSON Envelope
+## Machine-Readable JSON Protocol
 
-Every subcommand supports `--json` to output TechTide's canonical multi-agent envelope:
+Every subcommand supports `--json` to output TechTide's canonical harness envelope:
 
 ```json
 {
   "status": "success",
   "summary": "PASS: all 6 axial metric gates passed (proof_sha256=66dee7210f9f...)",
   "next_actions": ["commit proof bundle if corpus updated"],
-  "artifacts": ["Tools/reval/fixtures/baseline.json"],
+  "artifacts": ["fixtures/baseline.json"],
   "data": { ... }
 }
 ```
@@ -179,10 +214,11 @@ Every subcommand supports `--json` to output TechTide's canonical multi-agent en
 ## Architecture
 
 ```text
-Tools/reval/
+reval/
 ├── Cargo.toml               # Rust 2024 edition, pure Rust dependencies
 ├── .cargo/config.toml       # Lints, target optimizations
-├── .github/workflows/ci.yml # Pinned SHA multi-platform CI
+├── .github/workflows/ci.yml # Multi-platform CI (Ubuntu, macOS, Windows)
+├── .github/workflows/release.yml # Multi-target automated binary releases
 ├── reval.ps1                # PowerShell wrapper
 ├── fixtures/                # Calibrated traces, baselines, proofs & dashboard
 └── src/
@@ -219,24 +255,24 @@ Tools/reval/
 
 ## Verification & Test Gates
 
-Run the test suite and release build through TechTide's quiet runner:
+Run the test suite and release build locally:
 
 ```bash
 # Formatting
-node Tools/agent-harness/q.mjs -- cargo fmt --manifest-path Tools/reval/Cargo.toml --all -- --check
+cargo fmt --all -- --check
 
 # Clippy lints (warnings treated as errors)
-node Tools/agent-harness/q.mjs -- cargo clippy --manifest-path Tools/reval/Cargo.toml --all-targets -- -D warnings
+cargo clippy --all-targets -- -D warnings
 
 # Integration and property test suite (950+ randomized property iterations)
-node Tools/agent-harness/q.mjs -- cargo test --manifest-path Tools/reval/Cargo.toml --all-targets
+cargo test --all-targets
 
 # Release build
-node Tools/agent-harness/q.mjs -- cargo build --manifest-path Tools/reval/Cargo.toml --release
+cargo build --release
 ```
 
 ---
 
 ## License
 
-MIT © [TechTide AI](https://techtideai.io) & Alexi5000.
+MIT © [TechTide AI](https://techtideai.io) & Alexi5000. See [LICENSE](LICENSE) for details.
