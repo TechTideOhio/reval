@@ -1,4 +1,4 @@
-# reval — TideOS Eval Kit (Tool 1)
+# reval: TideOS Eval Kit (Tool 1)
 
 <div align="center">
 
@@ -10,7 +10,7 @@
 [![Rust: 2024 / 1.82+](https://img.shields.io/badge/Rust-2024%20%2F%201.82%2B-orange.svg)](Cargo.toml)
 [![Zero-FFI](https://img.shields.io/badge/Dependencies-Zero--FFI%20Pure%20Rust-purple.svg)](Cargo.toml)
 
-[Quickstart](#60-second-quickstart) • [Core Capabilities](#core-capabilities-architected-for-real-agent-engineers) • [Architecture](#architecture) • [Dashboard](#interactive-trace-tree-dashboard) • [Contributing](CONTRIBUTING.md)
+[Quickstart](#60-second-quickstart) • [Core Capabilities](#core-capabilities-architected-for-real-agent-engineers) • [Architecture](#architecture) • [Dashboard](#5-execution-trace-tree-and-visual-dashboard-chase--langsmith-ready) • [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -18,7 +18,7 @@
 
 ## Why reval?
 
-Most AI evaluation frameworks rely on LLM-as-a-judge prompts that suffer from non-determinism, model drift, token costs, and prompt injection vulnerabilities. When an agent breaks a build loop or leaks an API credential, an LLM judge cannot be trusted to fail closed in CI.
+Most AI evaluation frameworks rely on LLM-as-a-judge prompts that suffer from non-determinism, model drift, high token costs, and prompt injection vulnerabilities. When an agent enters an infinite repair loop, breaks a build dependency, or leaks an API credential, an LLM judge cannot be trusted to fail closed in CI.
 
 `reval` implements the empirical evaluation methodology codified by Hamel Husain, Shreya Shankar, and Anthropic/OpenAI research:
 
@@ -46,20 +46,20 @@ Most AI evaluation frameworks rely on LLM-as-a-judge prompts that suffer from no
 ## Core Capabilities (Architected for Real Agent Engineers)
 
 ### 1. Poltergeist-Style Loop Watcher (Steinberger-Ready)
-Autonomous CLI agents running in parallel grids can spiral into infinite repair loops. `reval watch` runs an active polling daemon over harness logs and terminal sessions. The instant a loop cascade or circuit breaker is breached, it sounds an audible terminal bell (`\x07`) and prints an immediate high-visibility alert:
+Autonomous CLI agents running in parallel grids can spiral into runaway repair loops, burning CPU and tokens. `reval watch` runs an active polling daemon over harness logs and terminal sessions. The instant a loop cascade or circuit breaker is breached, it sounds an audible terminal bell (`\x07`) and prints an immediate high-visibility alert:
 
 ```bash
 reval watch --root . --interval-ms 800
 ```
 
 ```text
-🔭 reval watcher active (root: ., poll: 800ms)
+[WATCH] reval watcher active (root: ., poll: 800ms)
 Watching for agent runs and monitoring loop cascades... (Ctrl+C to stop)
 
-✅ [2026-10-30T14-24-53-cargo-fmt] cargo fmt (agent: q.mjs)
-❌ [2026-10-30T11-59-45-pnpm-build] pnpm build (agent: vsp)
+[PASS] [2026-10-30T14-24-53-cargo-fmt] cargo fmt (agent: q.mjs)
+[FAIL] [2026-10-30T11-59-45-pnpm-build] pnpm build (agent: vsp)
 
-🚨 ==================== [ALARM: RUNAWAY LOOP CASCADE] ====================
+==================== [ALARM: RUNAWAY LOOP CASCADE] ====================
 Trace: 2026-10-30T11-59-45-pnpm-build
 Open code: TYPECHECK-BUILD-ORDER-CASCADE
 Axial category: loop_cascade
@@ -79,7 +79,7 @@ reval mcp --root .
 - **Resources**: `reval://metrics/top3`, `reval://graph/causal`, `reval://lessons/latest`.
 
 ### 3. Causal Failure Transition Graph (Sweet / `orneryd`-Ready)
-Instead of treating failure modes as flat static buckets, `reval trace graph` constructs a directed causal graph (Graph-RAG style) linking open-code precursor warnings (e.g., `LINT-RATCHET`, `STREAM-DISCONNECT`) to downstream cascade events (`loop_cascade`, `premature_kill`):
+Instead of treating failure modes as flat static buckets, `reval trace graph` constructs a directed causal graph (Graph-RAG style) linking open-code precursor warnings (such as `LINT-RATCHET` and `STREAM-DISCONNECT`) to downstream cascade events (`loop_cascade`, `premature_kill`):
 
 ```bash
 reval trace graph --format mermaid
@@ -108,7 +108,7 @@ reval trace lessons vitest
    Rule: Run narrowest single test file while iterating; isolate Postgres advisory-lock fixtures per test.
 ```
 
-### 5. Execution Trace Tree & Visual Dashboard (Chase / LangSmith-Ready)
+### 5. Execution Trace Tree and Visual Dashboard (Chase / LangSmith-Ready)
 `reval trace tree` aggregates multi-agent trajectories into an interactive, self-contained HTML dashboard with search filtering, collapsible nodes, and error badges:
 
 ```bash
@@ -129,7 +129,7 @@ cargo install --git https://github.com/TechTideOhio/reval
 #### Option 2: Pre-compiled GitHub Release Binary
 Download the single standalone binary directly from [Releases](https://github.com/TechTideOhio/reval/releases/latest) for your platform (Linux x86_64, macOS Apple Silicon / Intel, Windows x86_64).
 
-### 1. Ingest & Analyze Multi-Agent Traces
+### 1. Ingest and Analyze Multi-Agent Traces
 Scans harness runs and execution logs, performs open coding on failures, clusters them into axial categories, and calculates Pass@1, Pass@3, and Pass^3:
 
 ```bash
@@ -186,7 +186,7 @@ PASS: all 6 axial metric gates passed (proof_sha256=66dee7210f9f...)
   [PASS] pass_at_3                  observed=0.9862   >= threshold=0.98
 ```
 
-### 4. Scan Repository & Agent Hygiene
+### 4. Scan Repository and Agent Hygiene
 Verifies `.env` files are not committed, pnpm/cargo lockfiles are intact, and skill markdown references point to real files:
 
 ```bash
@@ -220,7 +220,7 @@ reval/
 ├── .github/workflows/ci.yml # Multi-platform CI (Ubuntu, macOS, Windows)
 ├── .github/workflows/release.yml # Multi-target automated binary releases
 ├── reval.ps1                # PowerShell wrapper
-├── fixtures/                # Calibrated traces, baselines, proofs & dashboard
+├── fixtures/                # Calibrated traces, baselines, proofs and dashboard
 └── src/
     ├── main.rs              # CLI parser (clap derive)
     ├── lib.rs               # Library root export
@@ -228,8 +228,8 @@ reval/
     ├── envelope.rs          # HarnessEnvelope JSON protocol schema
     ├── watch/               # Active Poltergeist-style loop watcher
     ├── mcp/                 # Native Model Context Protocol (MCP) server
-    ├── tree/                # Hierarchical trace tree & HTML exporter
-    ├── ingest/              # Corpus ingestion & regex secret redaction
+    ├── tree/                # Hierarchical trace tree and HTML exporter
+    ├── ingest/              # Corpus ingestion and regex secret redaction
     │   ├── golang.rs        # `go test -json` streaming parser
     │   ├── rust.rs          # `cargo test/clippy` JSON event parser
     │   └── harness.rs       # Multi-agent prompt/stdout/result loader
@@ -240,8 +240,8 @@ reval/
     │   ├── causal.rs        # Directed Causal Failure Transition Graph
     │   └── lessons.rs       # Proactive agent memory query engine
     ├── eval/                # Stratified golden test evaluation
-    │   ├── checks.rs        # Deterministic regex, json, & hybrid judge checks
-    │   ├── rubric.rs        # Blocker veto weighting & scoring
+    │   ├── checks.rs        # Deterministic regex, json, and hybrid judge checks
+    │   ├── rubric.rs        # Blocker veto weighting and scoring
     │   └── stratum.rs       # Stratified score combination
     ├── gate/                # Continuous quality gating
     │   ├── reliability.rs   # Pass@1, Pass@3, Pass^3 calculation
@@ -275,4 +275,4 @@ cargo build --release
 
 ## License
 
-MIT © [TechTide AI](https://techtideai.io) & Alexi5000. See [LICENSE](LICENSE) for details.
+MIT (c) [TechTide AI](https://techtideai.io) & Alexi5000. See [LICENSE](LICENSE) for details.

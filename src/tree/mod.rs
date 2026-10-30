@@ -90,7 +90,7 @@ impl TraceTree {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TideOS reval — Multi-Agent Execution Trace Dashboard</title>
+  <title>TideOS reval: Multi-Agent Execution Trace Dashboard</title>
   <style>
     :root {{
       --bg: #090d16;
@@ -310,7 +310,7 @@ impl TraceTree {
     <div class="brand">
       <div class="logo">R</div>
       <div>
-        <h1>reval — Multi-Agent Trace Tree</h1>
+        <h1>reval: Multi-Agent Trace Tree</h1>
         <div class="subtitle">TideOS Eval Kit (Tool 1) • Empirical Production Error Analysis</div>
       </div>
     </div>
