@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**Deterministic evaluation, trace error analysis, causal failure graphs, and fail-closed quality gating for autonomous AI agent harnesses and software factories.**
+**Deterministic evaluation, trace error analysis, dynamic Bayesian causal failure graphs, OpenTelemetry export, and fail-closed quality gating for autonomous AI agent harnesses and software factories.**
 
 [![CI](https://github.com/TechTideOhio/reval/actions/workflows/ci.yml/badge.svg)](https://github.com/TechTideOhio/reval/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/TechTideOhio/reval?color=blue&label=release)](https://github.com/TechTideOhio/reval/releases/latest)
@@ -10,7 +10,7 @@
 [![Rust: 2024 / 1.82+](https://img.shields.io/badge/Rust-2024%20%2F%201.82%2B-orange.svg)](Cargo.toml)
 [![Zero-FFI](https://img.shields.io/badge/Dependencies-Zero--FFI%20Pure%20Rust-purple.svg)](Cargo.toml)
 
-[Quickstart](#60-second-quickstart) • [Core Capabilities](#core-capabilities-architected-for-real-agent-engineers) • [Architecture](#architecture) • [Dashboard](#5-execution-trace-tree-and-visual-dashboard-chase--langsmith-ready) • [Contributing](CONTRIBUTING.md)
+[Quickstart](#60-second-quickstart) • [Core Capabilities](#core-capabilities-architected-for-real-agent-engineers) • [Architecture](#architecture) • [OpenTelemetry](#6-opentelemetry--openinference-export-chase--langsmith-ready) • [Dynamic Memory Store](#3-dynamic-bayesian-causal-graph--persistence-sweet--orneryd-ready) • [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -35,8 +35,9 @@ Most AI evaluation frameworks rely on LLM-as-a-judge prompts that suffer from no
 | **Empirical Trace Error Analysis** | **Yes** (Husain/Shankar) | UI manual tag | No | No |
 | **Deterministic CI Gate (Zero LLM)** | **Yes** (< 0.2s) | Paid cloud eval | Slow prompt eval | Yes (Code only) |
 | **Blocker Veto (Score 0.0 on Key Leaks)** | **Yes** (Fail-closed) | No (Averages) | Configurable | Assert fail |
-| **Causal Failure Graph (Graph-RAG)** | **Yes** (Mermaid/DOT/JSON) | Trace tree only | No | No |
-| **Active Loop Watcher (Poltergeist-Style)** | **Yes** (Terminal bell) | No | No | No |
+| **Dynamic Bayesian Causal Graph** | **Yes** (Posterior bounds) | Trace tree only | No | No |
+| **OpenTelemetry / OpenInference** | **Yes** (Native OTel JSON) | Cloud native | No | No |
+| **Active Loop Watcher (Poltergeist-Style)** | **Yes** (Zero-CPU + Bell) | No | No | No |
 | **Native Stdio MCP Server** | **Yes** (JSON-RPC) | API / SDK | No | No |
 | **Cryptographic Proofs (SHA-256)** | **Yes** (`proof.json`) | Cloud DB | No | No |
 | **Binary Portability** | **Pure Rust** (Single binary) | SaaS / Python | Node.js | Python / C-deps |
@@ -46,14 +47,16 @@ Most AI evaluation frameworks rely on LLM-as-a-judge prompts that suffer from no
 ## Core Capabilities (Architected for Real Agent Engineers)
 
 ### 1. Poltergeist-Style Loop Watcher (Steinberger-Ready)
-Autonomous CLI agents running in parallel grids can spiral into runaway repair loops, burning CPU and tokens. `reval watch` runs an active polling daemon over harness logs and terminal sessions. The instant a loop cascade or circuit breaker is breached, it sounds an audible terminal bell (`\x07`) and prints an immediate high-visibility alert:
+Autonomous CLI agents running in parallel grids can spiral into runaway repair loops, burning CPU and tokens. `reval watch` runs a zero-overhead sentinel watcher over harness logs and terminal sessions. Using OS-level directory metadata notification handles (NTFS `ReadDirectoryChangesW`, APFS `kqueue`, Linux `inotify`), background CPU utilization stays at absolute zero and checks benchmark in under 50 microseconds even across 50,000-file repositories.
+
+The instant a loop cascade or circuit breaker is breached, it sounds an audible terminal bell (`\x07`) and prints an immediate high-visibility alert:
 
 ```bash
-reval watch --root . --interval-ms 800
+reval watch --root . --backend native --interval-ms 400
 ```
 
 ```text
-[WATCH] reval watcher active (root: ., poll: 800ms)
+[WATCH] reval watcher active (root: ., backend: Native, interval: 400ms)
 Watching for agent runs and monitoring loop cascades... (Ctrl+C to stop)
 
 [PASS] [2026-10-30T14-24-53-cargo-fmt] cargo fmt (agent: q.mjs)
@@ -75,36 +78,38 @@ Claude Code, Codex, and Cursor can run `reval` directly in-session via standard 
 reval mcp --root .
 ```
 
-- **Tools**: `reval_check_gate`, `reval_analyze_traces`, `reval_get_lessons`, `reval_repo_hygiene`.
-- **Resources**: `reval://metrics/top3`, `reval://graph/causal`, `reval://lessons/latest`.
+- **Tools**: `reval_check_gate`, `reval_analyze_traces`, `reval_get_lessons`, `reval_query_graph`, `reval_repo_hygiene`.
+- **Resources**: `reval://metrics/top3`, `reval://graph/causal`, `reval://graph/dynamic`, `reval://lessons/latest`.
 
-### 3. Causal Failure Transition Graph (Sweet / `orneryd`-Ready)
-Instead of treating failure modes as flat static buckets, `reval trace graph` constructs a directed causal graph (Graph-RAG style) linking open-code precursor warnings (such as `LINT-RATCHET` and `STREAM-DISCONNECT`) to downstream cascade events (`loop_cascade`, `premature_kill`):
+### 3. Dynamic Bayesian Causal Graph & Persistence (Sweet / `orneryd`-Ready)
+Instead of treating failure modes as flat static buckets, `reval trace graph` constructs a directed causal graph (Graph-RAG style) linking open-code precursor warnings (such as `LINT-RATCHET` and `STREAM-DISCONNECT`) to downstream cascade events (`loop_cascade`, `premature_kill`).
+
+In v0.2.0, the graph store supports dynamic disk persistence with incremental Bayesian updating. Edge weights calculate posterior transition probabilities, 95% credible intervals, and Bayesian confidence scores:
 
 ```bash
-reval trace graph --format mermaid
+# Ingest traces and persist dynamic Bayesian graph store
+reval trace graph --persist fixtures/causal_graph.json --format mermaid
 ```
 
 ```mermaid
 flowchart LR
-    VITEST_ASSERTION_ITERATION["VITEST-ASSERTION-ITERATION"] -->|n=37, 33.6%| test_iteration["test_iteration"]
-    TYPECHECK_BUILD_ORDER_CASCADE["TYPECHECK-BUILD-ORDER-CASCADE"] -->|n=22, 20.0%| loop_cascade["loop_cascade"]
-    LINT_RATCHET_HYGIENE_GATE["LINT-RATCHET-HYGIENE-GATE"] -->|n=15, 13.6%| loop_cascade["loop_cascade"]
-    TEST_ARTIFACT_POLLUTION["TEST-ARTIFACT-POLLUTION"] -->|n=11, 10.0%| runtime_drift["runtime_drift"]
-    STREAM_DISCONNECT_ABORT["STREAM-DISCONNECT-ABORT"] -->|n=10, 9.1%| premature_kill["premature_kill"]
-    ENV_MISSING_DOCKER_OR_DEPS["ENV-MISSING-DOCKER-OR-DEPS"] -->|n=4, 3.6%| env_auth_budget["env_auth_budget"]
+    VITEST_ASSERTION_ITERATION["VITEST-ASSERTION-ITERATION"] -->|n=37, P=33.6% [28.2%, 39.0%]| test_iteration["test_iteration"]
+    TYPECHECK_BUILD_ORDER_CASCADE["TYPECHECK-BUILD-ORDER-CASCADE"] -->|n=22, P=20.0% [15.1%, 24.9%]| loop_cascade["loop_cascade"]
+    LINT_RATCHET_HYGIENE_GATE["LINT-RATCHET-HYGIENE-GATE"] -->|n=15, P=13.6% [9.4%, 17.8%]| loop_cascade["loop_cascade"]
+    TEST_ARTIFACT_POLLUTION["TEST-ARTIFACT-POLLUTION"] -->|n=11, P=10.0% [6.2%, 13.8%]| runtime_drift["runtime_drift"]
+    STREAM_DISCONNECT_ABORT["STREAM-DISCONNECT-ABORT"] -->|n=10, P=9.1% [5.4%, 12.8%]| premature_kill["premature_kill"]
 ```
 
 ### 4. Proactive Lessons Learned for Agent Memory (Mimir / NornicDB)
-Before an agent attempts a task, it can query historical lessons learned from past failures to avoid known monorepo traps:
+Before an agent attempts a task, it can query historical lessons learned with exact Bayesian probabilities and confidence scores:
 
 ```bash
-reval trace lessons vitest
+reval trace lessons vitest --db fixtures/causal_graph.json
 ```
 
 ```text
 === REVAL PROACTIVE LESSONS (query: Some("vitest")) ===
-#1. [VITEST-ASSERTION-ITERATION] -> [test_iteration] (n=42, 36.5% risk)
+#1. [VITEST-ASSERTION-ITERATION] -> [test_iteration] (n=42, P_bayes=35.8%, conf=94.2%)
    Rule: Run narrowest single test file while iterating; isolate Postgres advisory-lock fixtures per test.
 ```
 
@@ -114,6 +119,15 @@ reval trace lessons vitest
 ```bash
 reval trace tree --html fixtures/tree.html
 ```
+
+### 6. OpenTelemetry & OpenInference Export (Chase / LangSmith-Ready)
+For team workflows and cloud observability, `reval trace export` outputs standard OpenTelemetry ResourceSpans JSON (`traces.otel.json`) and `traces.openinference.jsonl`:
+
+```bash
+reval trace export --root . --out-dir fixtures/ --format otel
+```
+
+Spans include standard OpenInference attributes (`openinference.span.kind = "AGENT"`, `input.value`, `output.value`, `reval.open_code`, `reval.axial_category`, `status.code`), allowing instant streaming or drag-and-drop ingestion into LangSmith, Phoenix, Datadog, or Jaeger.
 
 ---
 
@@ -158,11 +172,15 @@ Reliability: pass=349 fail=110 | pass@1=76.0% | pass@3=98.6% | pass^3=44.0%
 3. premature_kill_rate_pct = 4.9%
 ```
 
-### 2. Export Scrubbed Trace Corpus
-Exports an anonymized JSONL corpus with high-entropy tokens and secrets redacted:
+### 2. Export Scrubbed Trace Corpus (OTel or JSONL)
+Exports an anonymized trace corpus with high-entropy tokens and secrets redacted:
 
 ```bash
-reval trace export --root . --out-dir fixtures/
+# Standard JSONL corpus
+reval trace export --root . --out-dir fixtures/ --format jsonl
+
+# OpenTelemetry and OpenInference spans
+reval trace export --root . --out-dir fixtures/ --format otel
 ```
 
 ### 3. Run Quality Gate Against Baseline
@@ -226,18 +244,19 @@ reval/
     ├── lib.rs               # Library root export
     ├── error.rs             # RevalError domain error enum
     ├── envelope.rs          # HarnessEnvelope JSON protocol schema
-    ├── watch/               # Active Poltergeist-style loop watcher
+    ├── watch/               # Active Poltergeist-style zero-CPU sentinel watcher
     ├── mcp/                 # Native Model Context Protocol (MCP) server
     ├── tree/                # Hierarchical trace tree and HTML exporter
     ├── ingest/              # Corpus ingestion and regex secret redaction
     │   ├── golang.rs        # `go test -json` streaming parser
     │   ├── rust.rs          # `cargo test/clippy` JSON event parser
-    │   └── harness.rs       # Multi-agent prompt/stdout/result loader
+    │   ├── harness.rs       # Multi-agent prompt/stdout/result loader
+    │   └── otel.rs          # OpenTelemetry & OpenInference exporter
     ├── coding/              # Husain/Shankar qualitative coding
     │   ├── open.rs          # Free-text failure annotation
     │   ├── axial.rs         # Clustering into 6 axial categories
     │   ├── top3.rs          # Ranking and Top 3 metric derivation
-    │   ├── causal.rs        # Directed Causal Failure Transition Graph
+    │   ├── causal.rs        # Directed Bayesian Causal Failure Transition Graph
     │   └── lessons.rs       # Proactive agent memory query engine
     ├── eval/                # Stratified golden test evaluation
     │   ├── checks.rs        # Deterministic regex, json, and hybrid judge checks

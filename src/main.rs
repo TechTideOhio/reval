@@ -9,10 +9,11 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
 use reval::{
-    annotate_failure, audit_repository, evaluate_gate, evaluate_traces, ingest_workspace_traces,
-    load_case, load_jsonl_corpus, query_lessons, run_mcp_server, run_watcher, score_suite,
-    BaselineRatchet, CausalFailureGraph, EnvelopeStatus, HarnessEnvelope, RevalReport,
-    StratumConfig, TraceOutcome, TraceRecord, TraceTree, WatchOptions,
+    annotate_failure, audit_repository, evaluate_gate, evaluate_traces,
+    export_otel_and_openinference, ingest_workspace_traces, load_case, load_jsonl_corpus,
+    query_lessons, query_lessons_from_store, run_mcp_server, run_watcher, score_suite,
+    BaselineRatchet, CausalFailureGraph, EnvelopeStatus, HarnessEnvelope, PersistentGraphStore,
+    RevalReport, StratumConfig, TraceOutcome, TraceRecord, TraceTree, WatchBackend, WatchOptions,
 };
 
 #[derive(Debug, Parser)]
@@ -92,9 +93,21 @@ enum Commands {
         #[arg(long, default_value = ".")]
         root: PathBuf,
 
+        /// Optional bounded Codex runs directory
+        #[arg(long)]
+        bounded_dir: Option<PathBuf>,
+
         /// Polling interval in milliseconds
-        #[arg(long, default_value_t = 800)]
+        #[arg(long, default_value_t = 400)]
         interval_ms: u64,
+
+        /// Debounce interval in milliseconds
+        #[arg(long, default_value_t = 50)]
+        debounce_ms: u64,
+
+        /// Watcher backend engine (native, polling)
+        #[arg(long, default_value = "native")]
+        backend: String,
 
         /// Suppress audible terminal bell on alarm
         #[arg(long)]
@@ -134,7 +147,7 @@ enum TraceCommands {
         json: bool,
     },
 
-    /// Export anonymized JSONL trace corpus + open-coding free-text annotations
+    /// Export anonymized JSONL or OpenTelemetry trace corpus + open-coding free-text annotations
     Export {
         /// Workspace root containing `Tools/agent-harness/{runs,logs}`
         #[arg(long, default_value = ".")]
@@ -144,9 +157,13 @@ enum TraceCommands {
         #[arg(long)]
         bounded_dir: Option<PathBuf>,
 
-        /// Output directory for `traces.jsonl` and `open_coding.jsonl`
+        /// Output directory for exported traces
         #[arg(long)]
         out_dir: PathBuf,
+
+        /// Export format (jsonl, otel, all)
+        #[arg(long, default_value = "jsonl")]
+        format: String,
 
         /// Emit canonical machine-readable JSON envelope
         #[arg(long)]
@@ -170,6 +187,14 @@ enum TraceCommands {
         /// Output format (mermaid, dot, json)
         #[arg(long, default_value = "mermaid")]
         format: String,
+
+        /// Optional path to persist or update dynamic Bayesian causal graph store
+        #[arg(long)]
+        persist: Option<PathBuf>,
+
+        /// Optional path to load existing dynamic Bayesian causal graph store
+        #[arg(long)]
+        db: Option<PathBuf>,
     },
 
     /// Proactive lessons learned retrieval for agent memory banks (Mimir / `NornicDB` style)
@@ -181,6 +206,10 @@ enum TraceCommands {
         /// Optional query keyword (e.g. 'vitest', 'contract', 'claude')
         #[arg(index = 1)]
         query: Option<String>,
+
+        /// Optional path to load dynamic Bayesian causal graph store
+        #[arg(long)]
+        db: Option<PathBuf>,
 
         /// Emit canonical machine-readable JSON envelope
         #[arg(long)]
@@ -341,47 +370,60 @@ fn cmd_trace_export(
     root: &Path,
     bounded_dir: Option<&Path>,
     out_dir: &Path,
+    format_opt: &str,
     json: bool,
 ) -> Result<ExitCode> {
     let traces = load_traces(root, bounded_dir, None)?;
     fs::create_dir_all(out_dir)
         .with_context(|| format!("failed to create {}", out_dir.display()))?;
-    let traces_path = out_dir.join("traces.jsonl");
-    let open_coding_path = out_dir.join("open_coding.jsonl");
-
-    let mut traces_buf = String::new();
-    let mut open_buf = String::new();
+    let mut artifacts = Vec::new();
     let mut open_count = 0usize;
 
-    for rec in &traces {
-        traces_buf.push_str(&serde_json::to_string(rec)?);
-        traces_buf.push('\n');
-        if let Some((coded, _)) = annotate_failure(rec) {
-            open_count += 1;
-            open_buf.push_str(&serde_json::to_string(&coded)?);
-            open_buf.push('\n');
+    let format_lower = format_opt.to_lowercase();
+    let do_jsonl = format_lower == "jsonl" || format_lower == "all";
+    let do_otel = format_lower == "otel" || format_lower == "all";
+
+    if do_jsonl {
+        let traces_path = out_dir.join("traces.jsonl");
+        let open_coding_path = out_dir.join("open_coding.jsonl");
+
+        let mut traces_buf = String::new();
+        let mut open_buf = String::new();
+
+        for rec in &traces {
+            traces_buf.push_str(&serde_json::to_string(rec)?);
+            traces_buf.push('\n');
+            if let Some((coded, _)) = annotate_failure(rec) {
+                open_count += 1;
+                open_buf.push_str(&serde_json::to_string(&coded)?);
+                open_buf.push('\n');
+            }
         }
+
+        fs::write(&traces_path, traces_buf)?;
+        fs::write(&open_coding_path, open_buf)?;
+        artifacts.push(traces_path.display().to_string());
+        artifacts.push(open_coding_path.display().to_string());
     }
 
-    fs::write(&traces_path, traces_buf)?;
-    fs::write(&open_coding_path, open_buf)?;
+    if do_otel {
+        let (otel_path, oi_path) = export_otel_and_openinference(&traces, out_dir)?;
+        artifacts.push(otel_path.display().to_string());
+        artifacts.push(oi_path.display().to_string());
+    }
 
     let summary = format!(
-        "exported {} scrubbed production traces and {} open-coded failure annotations",
+        "exported {} scrubbed production traces across format `{}`",
         traces.len(),
-        open_count
+        format_opt
     );
-    let artifacts = vec![
-        traces_path.display().to_string(),
-        open_coding_path.display().to_string(),
-    ];
     if json {
         let env = HarnessEnvelope::new(
             EnvelopeStatus::Success,
             summary,
-            vec!["run `reval gate` or `reval trace analyze` against exported fixtures".to_string()],
+            vec!["import otel spans to LangSmith/Phoenix or run `reval gate`".to_string()],
             artifacts,
-            serde_json::json!({ "traces": traces.len(), "open_coded_failures": open_count }),
+            serde_json::json!({ "traces": traces.len(), "open_coded_failures": open_count, "format": format_opt }),
         );
         println!("{}", serde_json::to_string_pretty(&env)?);
     } else {
@@ -397,23 +439,63 @@ fn cmd_trace_graph(
     root: &Path,
     bounded_dir: Option<&Path>,
     corpus: Option<&Path>,
-    format: &str,
+    format_opt: &str,
+    persist: Option<&Path>,
+    db: Option<&Path>,
 ) -> Result<ExitCode> {
     let traces = load_traces(root, bounded_dir, corpus)?;
-    let graph = CausalFailureGraph::from_traces(&traces);
 
-    match format.to_lowercase().as_str() {
-        "dot" => println!("{}", graph.to_dot()),
-        "json" => println!("{}", serde_json::to_string_pretty(&graph)?),
-        _ => println!("{}", graph.to_mermaid()),
+    if let Some(persist_path) = persist {
+        let mut store = if let Some(db_path) = db {
+            PersistentGraphStore::load_or_create(db_path)?
+        } else {
+            PersistentGraphStore::load_or_create(persist_path)?
+        };
+        store.ingest_traces(&traces);
+        store.save(persist_path)?;
+        println!(
+            "persisted dynamic Bayesian causal graph to {} ({} edges, {} traces observed)",
+            persist_path.display(),
+            store.edges.len(),
+            store.total_traces_observed
+        );
+        match format_opt.to_lowercase().as_str() {
+            "dot" => println!("{}", store.to_dot()),
+            "json" => println!("{}", serde_json::to_string_pretty(&store)?),
+            _ => println!("{}", store.to_mermaid()),
+        }
+    } else if let Some(db_path) = db {
+        let store = PersistentGraphStore::load_or_create(db_path)?;
+        match format_opt.to_lowercase().as_str() {
+            "dot" => println!("{}", store.to_dot()),
+            "json" => println!("{}", serde_json::to_string_pretty(&store)?),
+            _ => println!("{}", store.to_mermaid()),
+        }
+    } else {
+        let graph = CausalFailureGraph::from_traces(&traces);
+        match format_opt.to_lowercase().as_str() {
+            "dot" => println!("{}", graph.to_dot()),
+            "json" => println!("{}", serde_json::to_string_pretty(&graph)?),
+            _ => println!("{}", graph.to_mermaid()),
+        }
     }
     Ok(ExitCode::SUCCESS)
 }
 
-fn cmd_trace_lessons(root: &Path, query: Option<&str>, json: bool) -> Result<ExitCode> {
-    let traces = load_traces(root, None, None)?;
-    let graph = CausalFailureGraph::from_traces(&traces);
-    let lessons = query_lessons(&graph, query);
+fn cmd_trace_lessons(
+    root: &Path,
+    query: Option<&str>,
+    db: Option<&Path>,
+    json: bool,
+) -> Result<ExitCode> {
+    let lessons = if let Some(db_path) = db {
+        let store = PersistentGraphStore::load_or_create(db_path)?;
+        query_lessons_from_store(&store, query)
+    } else {
+        let traces = load_traces(root, None, None)?;
+        let graph = CausalFailureGraph::from_traces(&traces);
+        query_lessons(&graph, query)
+    };
 
     let summary = format!("retrieved {} actionable lessons learned", lessons.len());
     if json {
@@ -422,14 +504,27 @@ fn cmd_trace_lessons(root: &Path, query: Option<&str>, json: bool) -> Result<Exi
     } else {
         println!("=== REVAL PROACTIVE LESSONS (query: {:?}) ===", query);
         for (i, l) in lessons.iter().enumerate() {
-            println!(
-                "#{}. [{}] -> [{}] (n={}, {:.1}% risk)",
-                i + 1,
-                l.precursor,
-                l.cascade_risk,
-                l.historical_frequency,
-                l.risk_share_pct
-            );
+            if let Some(bayes_p) = l.bayes_probability_pct {
+                let conf = l.confidence_score.unwrap_or(0.0) * 100.0;
+                println!(
+                    "#{}. [{}] -> [{}] (n={}, P_bayes={:.1}%, conf={:.1}%)",
+                    i + 1,
+                    l.precursor,
+                    l.cascade_risk,
+                    l.historical_frequency,
+                    bayes_p,
+                    conf
+                );
+            } else {
+                println!(
+                    "#{}. [{}] -> [{}] (n={}, {:.1}% risk)",
+                    i + 1,
+                    l.precursor,
+                    l.cascade_risk,
+                    l.historical_frequency,
+                    l.risk_share_pct
+                );
+            }
             println!("   Rule: {}", l.prescriptive_rule);
         }
     }
@@ -481,10 +576,25 @@ fn cmd_trace_tree(
     Ok(ExitCode::SUCCESS)
 }
 
-fn cmd_watch(root: &Path, interval_ms: u64, no_bell: bool) -> Result<ExitCode> {
+fn cmd_watch(
+    root: &Path,
+    bounded_dir: Option<&Path>,
+    interval_ms: u64,
+    debounce_ms: u64,
+    backend_str: &str,
+    no_bell: bool,
+) -> Result<ExitCode> {
+    let backend = if backend_str.eq_ignore_ascii_case("polling") {
+        WatchBackend::Polling
+    } else {
+        WatchBackend::Native
+    };
     let opts = WatchOptions {
         root: root.to_path_buf(),
+        bounded_dir: bounded_dir.map(Path::to_path_buf),
         interval: std::time::Duration::from_millis(interval_ms),
+        debounce: std::time::Duration::from_millis(debounce_ms),
+        backend,
         ring_bell: !no_bell,
     };
     run_watcher(&opts)?;
@@ -732,17 +842,30 @@ fn run() -> Result<ExitCode> {
                 root,
                 bounded_dir,
                 out_dir,
+                format,
                 json,
-            } => cmd_trace_export(&root, bounded_dir.as_deref(), &out_dir, json),
+            } => cmd_trace_export(&root, bounded_dir.as_deref(), &out_dir, &format, json),
             TraceCommands::Graph {
                 root,
                 bounded_dir,
                 corpus,
                 format,
-            } => cmd_trace_graph(&root, bounded_dir.as_deref(), corpus.as_deref(), &format),
-            TraceCommands::Lessons { root, query, json } => {
-                cmd_trace_lessons(&root, query.as_deref(), json)
-            }
+                persist,
+                db,
+            } => cmd_trace_graph(
+                &root,
+                bounded_dir.as_deref(),
+                corpus.as_deref(),
+                &format,
+                persist.as_deref(),
+                db.as_deref(),
+            ),
+            TraceCommands::Lessons {
+                root,
+                query,
+                db,
+                json,
+            } => cmd_trace_lessons(&root, query.as_deref(), db.as_deref(), json),
             TraceCommands::Tree {
                 root,
                 corpus,
@@ -782,9 +905,19 @@ fn run() -> Result<ExitCode> {
         } => cmd_hygiene(&path, &skill_root, json),
         Commands::Watch {
             root,
+            bounded_dir,
             interval_ms,
+            debounce_ms,
+            backend,
             no_bell,
-        } => cmd_watch(&root, interval_ms, no_bell),
+        } => cmd_watch(
+            &root,
+            bounded_dir.as_deref(),
+            interval_ms,
+            debounce_ms,
+            &backend,
+            no_bell,
+        ),
         Commands::Mcp { root } => cmd_mcp(&root),
     }
 }

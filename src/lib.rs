@@ -13,8 +13,9 @@ pub mod watch;
 
 pub use coding::{
     annotate_failure, axial_category_for, cluster_axial_categories, compute_first_three_metrics,
-    query_lessons, AxialCategory, AxialClusterSummary, CausalEdge, CausalFailureGraph, CausalNode,
-    FirstThreeMetrics, LessonLearned, OpenCode, OpenCodedFailure,
+    query_lessons, query_lessons_from_store, AxialCategory, AxialClusterSummary,
+    BayesianCausalEdge, CausalEdge, CausalFailureGraph, CausalNode, FirstThreeMetrics,
+    LessonLearned, OpenCode, OpenCodedFailure, PersistentGraphStore,
 };
 pub use envelope::{EnvelopeStatus, HarnessEnvelope};
 pub use error::RevalError;
@@ -31,13 +32,14 @@ pub use hygiene::{
     Severity as HygieneSeverity,
 };
 pub use ingest::{
-    ingest_bounded_runs, ingest_harness_runs, ingest_loop_events, ingest_quiet_logs,
-    ingest_workspace_traces, load_jsonl_corpus, parse_cargo_json, parse_go_test_json,
-    redact_sensitive, TraceOutcome, TraceRecord, TraceSource,
+    export_otel_and_openinference, ingest_bounded_runs, ingest_harness_runs, ingest_loop_events,
+    ingest_quiet_logs, ingest_workspace_traces, load_jsonl_corpus, parse_cargo_json,
+    parse_go_test_json, redact_sensitive, OTelExportBundle, OpenInferenceRecord, TraceOutcome,
+    TraceRecord, TraceSource,
 };
 pub use mcp::run_mcp_server;
 pub use tree::{TraceTree, TraceTreeNode};
-pub use watch::{run_watcher, WatchOptions};
+pub use watch::{run_watcher, WatchBackend, WatchOptions};
 
 #[cfg(test)]
 mod tests {

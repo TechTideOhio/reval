@@ -1,5 +1,6 @@
 pub mod golang;
 pub mod harness;
+pub mod otel;
 pub mod redact;
 pub mod rust;
 
@@ -14,6 +15,7 @@ pub use golang::parse_go_test_json;
 pub use harness::{
     ingest_bounded_runs, ingest_harness_runs, ingest_loop_events, ingest_quiet_logs,
 };
+pub use otel::{export_otel_and_openinference, OTelExportBundle, OpenInferenceRecord};
 pub use redact::redact_sensitive;
 pub use rust::parse_cargo_json;
 

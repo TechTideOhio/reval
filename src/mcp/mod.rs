@@ -5,8 +5,8 @@ use std::path::Path;
 use anyhow::Result;
 use serde_json::{json, Value};
 
-use crate::coding::causal::CausalFailureGraph;
-use crate::coding::lessons::query_lessons;
+use crate::coding::causal::{CausalFailureGraph, PersistentGraphStore};
+use crate::coding::lessons::{query_lessons, query_lessons_from_store};
 use crate::gate::{evaluate_gate, evaluate_traces, BaselineRatchet};
 use crate::hygiene::audit_repository;
 use crate::ingest::ingest_workspace_traces;
@@ -92,6 +92,19 @@ pub fn run_mcp_server(workspace_root: &Path) -> Result<()> {
                             }
                         },
                         {
+                            "name": "reval_query_graph",
+                            "description": "Queries dynamic Bayesian causal transition probabilities and credible intervals between warnings and cascades.",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "description": "Optional open code or failure category query"
+                                    }
+                                }
+                            }
+                        },
+                        {
                             "name": "reval_repo_hygiene",
                             "description": "Scans workspace for committed .env secrets, lockfile conflicts, and dangling skill references.",
                             "inputSchema": {
@@ -140,6 +153,11 @@ pub fn run_mcp_server(workspace_root: &Path) -> Result<()> {
                         {
                             "uri": "reval://graph/causal",
                             "name": "Causal Failure Transition Graph",
+                            "mimeType": "application/json"
+                        },
+                        {
+                            "uri": "reval://graph/dynamic",
+                            "name": "Dynamic Bayesian Causal Failure Graph",
                             "mimeType": "application/json"
                         },
                         {
@@ -252,6 +270,18 @@ fn handle_tool_call(root: &Path, name: &str, args: &Value) -> String {
             let lessons = query_lessons(&graph, query);
             serde_json::to_string_pretty(&lessons).unwrap_or_else(|_| "[]".to_string())
         }
+        "reval_query_graph" => {
+            let query = args.get("query").and_then(|v| v.as_str());
+            let traces = match ingest_workspace_traces(root, None) {
+                Ok(t) => t,
+                Err(err) => return format!("Failed to ingest traces: {err}"),
+            };
+
+            let mut store = PersistentGraphStore::default();
+            store.ingest_traces(&traces);
+            let lessons = query_lessons_from_store(&store, query);
+            serde_json::to_string_pretty(&lessons).unwrap_or_else(|_| "[]".to_string())
+        }
         "reval_repo_hygiene" => {
             let sub = args
                 .get("target_path")
@@ -286,6 +316,11 @@ fn handle_resource_read(root: &Path, uri: &str) -> String {
         "reval://graph/causal" => {
             let graph = CausalFailureGraph::from_traces(&traces);
             serde_json::to_string_pretty(&graph).unwrap_or_else(|_| "{}".to_string())
+        }
+        "reval://graph/dynamic" => {
+            let mut store = PersistentGraphStore::default();
+            store.ingest_traces(&traces);
+            serde_json::to_string_pretty(&store).unwrap_or_else(|_| "{}".to_string())
         }
         "reval://lessons/latest" => {
             let graph = CausalFailureGraph::from_traces(&traces);
