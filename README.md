@@ -7,7 +7,7 @@
 [![CI](https://github.com/TechTideOhio/reval/actions/workflows/ci.yml/badge.svg)](https://github.com/TechTideOhio/reval/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/TechTideOhio/reval?color=blue&label=release)](https://github.com/TechTideOhio/reval/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
-[![Rust: 2024 / 1.82+](https://img.shields.io/badge/Rust-2024%20%2F%201.82%2B-orange.svg)](Cargo.toml)
+[![Rust: 2021 / 1.82+](https://img.shields.io/badge/Rust-2021%20%2F%201.82%2B-orange.svg)](Cargo.toml)
 [![Zero-FFI](https://img.shields.io/badge/Dependencies-Zero--FFI%20Pure%20Rust-purple.svg)](Cargo.toml)
 
 [Quickstart](#60-second-quickstart) • [Core Capabilities](#core-capabilities-architected-for-real-agent-engineers) • [Architecture](#architecture) • [OpenTelemetry](#6-opentelemetry--openinference-export-chase--langsmith-ready) • [Dynamic Memory Store](#3-dynamic-bayesian-causal-graph--persistence-sweet--orneryd-ready) • [Contributing](CONTRIBUTING.md)
@@ -215,7 +215,9 @@ reval hygiene .
 
 ## Machine-Readable JSON Protocol
 
-Every subcommand supports `--json` to output TechTide's canonical harness envelope:
+These subcommands accept `--json` to output TechTide's canonical harness envelope: `trace analyze`, `trace export`, `trace lessons`, `trace tree`, `eval suite`, `gate`, and `hygiene`. `trace graph` selects JSON with `--format json` instead (raw graph, no envelope), and `watch` and `mcp` have no JSON output flag (`mcp` speaks JSON-RPC over stdio).
+
+Envelope shape:
 
 ```json
 {
@@ -233,7 +235,7 @@ Every subcommand supports `--json` to output TechTide's canonical harness envelo
 
 ```text
 reval/
-├── Cargo.toml               # Rust 2024 edition, pure Rust dependencies
+├── Cargo.toml               # Rust 2021 edition (MSRV 1.82), pure Rust dependencies
 ├── .cargo/config.toml       # Lints, target optimizations
 ├── .github/workflows/ci.yml # Multi-platform CI (Ubuntu, macOS, Windows)
 ├── .github/workflows/release.yml # Multi-target automated binary releases
